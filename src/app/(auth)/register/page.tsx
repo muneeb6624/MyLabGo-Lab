@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 function Page() {
   const [username, setUsername] = useState('');
@@ -9,6 +10,8 @@ function Page() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+
+  const router = useRouter();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +24,7 @@ function Page() {
       return;
     }
     setError('');
-    // Add your registration logic here
+    router.push('/lab-description');
     console.log('Form submitted:', { username, email, password });
   };
 
