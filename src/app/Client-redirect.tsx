@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 const isAuthenticated = () => {
   // Replace with real auth logic
-  return false;
+  return true;
 };
 
 export default function ClientRedirect() {
@@ -14,9 +14,9 @@ export default function ClientRedirect() {
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push("/register");
-    } else {
-      router.push("/dashboard");
     }
+    // Only redirect to dashboard if not already there
+    // Remove the else block to avoid infinite redirects
   }, [router]);
 
   return null;
