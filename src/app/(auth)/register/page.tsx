@@ -1,98 +1,170 @@
 "use client";
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { auth } from "../../../../lib/firebase";
+import { CldUploadWidget, CloudinaryUploadWidgetResults } from "next-cloudinary";
+
+// Firestore imports
+import { getFirestore, collection, addDoc } from "firebase/firestore";
+import { app } from "../../../../lib/firebase"; // Make sure you export 'app' from your firebase config
+
+import Image from "next/image";
+
+
 
 function Page() {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [labname, setLabName] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [labname, setLabName] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [labImageUrl, setLabImageUrl] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Initialize Firestore
+  const db = getFirestore(app);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !email || !password || !confirmPassword) {
-      setError('All fields are required.');
+
+    if (!username || !email || !password || !confirmPassword || !labname || !labImageUrl) {
+      setError("All fields including image are required.");
       return;
     }
+
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError("Passwords do not match.");
       return;
     }
-    setError('');
-    router.push('/lab-description');
-    console.log('Form submitted:', { username, email, password });
+
+    setError("");
+    setLoading(true);
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      await updateProfile(user, {
+        displayName: username,
+        photoURL: labImageUrl,
+      });
+
+      // Store lab data in Firestore
+      await addDoc(collection(db, "LabData"), {
+        email,
+        labName: labname,
+        userName: username,
+        imgUrl: labImageUrl,
+      });
+
+      console.log("User registered and lab data stored successfully");
+
+      
+      router.push("/lab-description");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || "Something went wrong.");
+        console.error(err);
+      } else {
+        setError("Something went wrong.");
+        console.error(err);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-[#00ACC1]">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-96">
-        {/* <img
-          src="/logo.png"
-          alt="Logo"
-          className="w-24 h-24 mx-auto mb-4"
-        /> */}
-        <h1 className="text-3xl font-bold text-[#374151] mb-4 text-center">Welcome to Lab Management System</h1>
-
-        <h1 className="text-3xl font-bold text-[#374151] mb-4 text-center">Register</h1>
-        <p className="text-sm text-[#374151] text-center mb-6">
-          Kindly fill in the details to create an account
-        </p>
-        {error && (
-          <div className="text-sm text-[#F57F17] mb-4 text-center">{error}</div>
-        )}
-        <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
+    <div className="register-container" style={{ maxWidth: 400, margin: "0 auto" }}>
+      <h2>Register</h2>
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label>Username:</label>
           <input
             type="text"
-            placeholder="username (It should be unique)"
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#3FA65C]"
+            onChange={e => setUsername(e.target.value)}
+            required
           />
-          <input
-            type="text"
-            placeholder="Laboratory Name"
-            value={labname}
-            onChange={(e) => setLabName(e.target.value)}
-            className="p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#3FA65C]"
-          />
+        </div>
+        <div>
+          <label>Email:</label>
           <input
             type="email"
-            placeholder="Email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#3FA65C]"
+            onChange={e => setEmail(e.target.value)}
+            required
           />
+        </div>
+        <div>
+          <label>Lab Name:</label>
+          <input
+            type="text"
+            value={labname}
+            onChange={e => setLabName(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label>Password:</label>
           <input
             type="password"
-            placeholder="Password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#3FA65C]"
+            onChange={e => setPassword(e.target.value)}
+            required
           />
+        </div>
+        <div>
+          <label>Confirm Password:</label>
           <input
             type="password"
-            placeholder="Confirm Password"
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#3FA65C]"
+            onChange={e => setConfirmPassword(e.target.value)}
+            required
           />
-          <button
-            type="submit"
-            className="bg-[#3FA65C] text-white py-2 px-4 rounded hover:bg-[#2e8c4a] transition duration-200"
-          >
-            Register
-          </button>
-        </form>
+        </div>
+        <div>
+          <label>Lab Image:</label>
 
-        <p className="text-sm text-[#374151] text-center mt-4">
-          Already have an account? <a href="/login" className="text-[#3FA65C]">Login here</a>
-        </p>
-      </div>
+<CldUploadWidget
+  uploadPreset="lab_upload_preset"
+  onSuccess={(results: CloudinaryUploadWidgetResults) => {
+    // Type narrowing: make sure info is an object, not a string
+    if (typeof results.info === "object" && results.info?.secure_url) {
+      setLabImageUrl(results.info.secure_url);
+    }
+  }}
+>
+  {({ open }) => (
+    <button type="button" onClick={() => open()}>
+      {labImageUrl ? "Change Image" : "Upload Image"}
+    </button>
+  )}
+</CldUploadWidget>
+
+          {labImageUrl && (
+  <div style={{ marginTop: 8 }}>
+    <Image
+      src={labImageUrl}
+      alt="Lab"
+      width={100}
+      height={100}
+      style={{ objectFit: "cover" }}
+    />
+  </div>
+)}
+
+        </div>
+        {error && <div style={{ color: "red", marginTop: 8 }}>{error}</div>}
+        <button type="submit" disabled={loading} style={{ marginTop: 12 }}>
+          {loading ? "Registering..." : "Register"}
+        </button>
+      </form>
     </div>
   );
 }
