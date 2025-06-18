@@ -48,12 +48,19 @@ function Page() {
         photoURL: labImageUrl,
       });
 
+      // Wait for the user to be authenticated before writing to Firestore
+      if (!user || !user.uid) {
+        throw new Error('User authentication failed. Please try again.');
+      }
+
       // Store Lab data and get the document reference
       const labDocRef = await addDoc(collection(db, 'LabData'), {
+        uid: user.uid,
         email,
         imgUrl: labImageUrl,
         labName: labname,
         userName: username,
+        role: 'user', // add a default role field if needed by your rules
       });
 
       // 🔥 Save the document ID to localStorage for later use

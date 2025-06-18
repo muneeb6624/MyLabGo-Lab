@@ -1,17 +1,22 @@
-'use client';
+"use client";
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { getFirestore, doc, updateDoc, GeoPoint } from 'firebase/firestore';
-import { app } from '../../../../lib/firebase';
-import * as maptilersdk from '@maptiler/sdk';
-import '@maptiler/sdk/dist/maptiler-sdk.css';
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import {
+  getFirestore,
+  doc,
+  updateDoc,
+  GeoPoint,
+} from "firebase/firestore";
+import { app } from "../../../../lib/firebase";
+import * as maptilersdk from "@maptiler/sdk";
+import "@maptiler/sdk/dist/maptiler-sdk.css";
 
-maptilersdk.config.apiKey = 'IS3cIJsI4oL56vExWNLY';
+maptilersdk.config.apiKey = "IS3cIJsI4oL56vExWNLY";
 
 function LocationPage() {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [latLng, setLatLng] = useState<{ lat: number; lng: number } | null>(null);
   const [map, setMap] = useState<maptilersdk.Map | null>(null);
   const markerRef = useRef<maptilersdk.Marker | null>(null);
@@ -19,11 +24,24 @@ function LocationPage() {
   const router = useRouter();
   const db = getFirestore(app);
 
+  // Reverse geocode function using MapTiler
+  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    try {
+      const res = await fetch(
+        `https://api.maptiler.com/geocoding/${lng},${lat}.json?key=IS3cIJsI4oL56vExWNLY`
+      );
+      const data = await res.json();
+      return data.features?.[0]?.place_name || "Unknown location";
+    } catch (error) {
+      console.error("Reverse geocoding failed:", error);
+      return "Unknown location";
+    }
+  };
+
   useEffect(() => {
-    // Get labId from localStorage
-    const labDocId = localStorage.getItem('labDocId');
+    const labDocId = localStorage.getItem("labDocId");
     if (!labDocId) {
-      setError('Lab registration not found. Please register again.');
+      setError("Lab registration not found. Please register again.");
     }
     setLabId(labDocId);
 
@@ -32,17 +50,15 @@ function LocationPage() {
     const newMap = new maptilersdk.Map({
       container: mapRef.current,
       style: maptilersdk.MapStyle.STREETS,
-      center: [78.9629, 20.5937], // Default center (India)
+      center: [78.9629, 20.5937], // Default to India
       zoom: 4,
     });
 
-    newMap.on('click', (e) => {
+    newMap.on("click", (e) => {
       const { lng, lat } = e.lngLat;
 
-      // Remove existing marker
       if (markerRef.current) markerRef.current.remove();
 
-      // Add new marker
       const newMarker = new maptilersdk.Marker().setLngLat([lng, lat]).addTo(newMap);
       markerRef.current = newMarker;
 
@@ -62,7 +78,7 @@ function LocationPage() {
 
   const locateUser = () => {
     if (!navigator.geolocation || !map) {
-      setError('Geolocation is not supported or map is not loaded.');
+      setError("Geolocation not supported or map not loaded.");
       return;
     }
 
@@ -79,7 +95,7 @@ function LocationPage() {
           .addTo(map);
         markerRef.current = newMarker;
       },
-      () => setError('Unable to retrieve your location.')
+      () => setError("Unable to retrieve your location.")
     );
   };
 
@@ -88,19 +104,22 @@ function LocationPage() {
       e.preventDefault();
 
       if (!latLng || !labId) {
-        setError('Please select a location on the map.');
+        setError("Please select a location on the map.");
         return;
       }
 
       try {
-        await updateDoc(doc(db, 'LabData', labId), {
-          location: new GeoPoint(latLng.lat, latLng.lng), // Store as Firestore GeoPoint
+        const locationString = await reverseGeocode(latLng.lat, latLng.lng);
+
+        await updateDoc(doc(db, "LabData", labId), {
+          location: new GeoPoint(latLng.lat, latLng.lng),
+          locationString, // Save human-readable name
         });
 
-        router.push('/available-tests');
-      } catch (err: unknown) {
-        console.error('Error updating location:', err);
-        setError('Failed to update location. Try again.');
+        router.push("/available-tests");
+      } catch (err) {
+        console.error("Error updating location:", err);
+        setError("Failed to update location. Try again.");
       }
     },
     [latLng, labId, db, router]
