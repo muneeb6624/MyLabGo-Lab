@@ -1,16 +1,43 @@
 'use client';
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { RxAvatar } from "react-icons/rx";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../../../lib/firebase"; // adjust path as needed
 
 function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.push('/login');
+      } else {
+        setIsAuthenticated(true);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [router]);
 
   const handleLogout = () => {
-    console.log("Logged out");
+    localStorage.removeItem("token");
+    localStorage.removeItem("labDocId");
+    auth.signOut();
+    router.push("/login");
   };
+
+  if (loading) {
+    return <div className="p-6 text-center text-gray-600">Checking authentication...</div>;
+  }
+
+  if (!isAuthenticated) return null; // while redirecting
 
   const navItems = [
     { label: "Profile", href: "/dashboard/profile" },

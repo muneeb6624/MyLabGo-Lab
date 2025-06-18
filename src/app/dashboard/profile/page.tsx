@@ -8,7 +8,7 @@ import { app } from '../../../../lib/firebase';
 interface LabDetails {
   imgUrl?: string;
   labName?: string;
-  labDescription?: string;
+  description?: string;
   userName?: string;
   email?: string;
   // Add other fields as needed based on your Firestore data
@@ -69,7 +69,7 @@ function Page() {
             {labDetails?.labName}
           </h1>
           <p className="text-sm text-gray-600 mt-2">
-            {labDetails?.labDescription || 'No description provided.'}
+            {labDetails?.description || 'No description provided.'}
           </p>
         </div>
       </div>
