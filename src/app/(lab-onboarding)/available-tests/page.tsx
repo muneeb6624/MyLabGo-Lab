@@ -1,12 +1,23 @@
 "use client";
 
 import React, { useState } from "react";
+import { getFirestore, collection, addDoc } from "firebase/firestore";
+import { app } from "../../../../lib/firebase";
 
 function AvailableTestsPage() {
-  const [customTests, setCustomTests] = useState<
-    { name: string; description: string; price: string; homeSample: string }[]
-  >([]);
-  const [newTest, setNewTest] = useState({
+  const db = getFirestore(app);
+
+  // Types
+  interface TestInput {
+    name: string;
+    description: string;
+    price: string;
+    homeSample: string;
+    estimatedTime?: string;
+  }
+
+  const [customTests, setCustomTests] = useState<TestInput[]>([]);
+  const [newTest, setNewTest] = useState<TestInput>({
     name: "",
     description: "",
     price: "",
@@ -14,7 +25,7 @@ function AvailableTestsPage() {
   });
 
   const [selectedPredefinedTests, setSelectedPredefinedTests] = useState<
-    { name: string; price: string }[]
+    TestInput[]
   >([]);
 
   const predefinedTests = [
@@ -31,7 +42,13 @@ function AvailableTestsPage() {
     if (checked) {
       setSelectedPredefinedTests([
         ...selectedPredefinedTests,
-        { name: testName, price: "" },
+        {
+          name: testName,
+          price: "",
+          homeSample: "No",
+          estimatedTime: "",
+          description: "",
+        },
       ]);
     } else {
       setSelectedPredefinedTests(
@@ -40,10 +57,14 @@ function AvailableTestsPage() {
     }
   };
 
-  const handlePredefinedTestPriceChange = (testName: string, price: string) => {
-    setSelectedPredefinedTests(
-      selectedPredefinedTests.map((test) =>
-        test.name === testName ? { ...test, price } : test
+  const handlePredefinedTestFieldChange = (
+    testName: string,
+    field: keyof TestInput,
+    value: string
+  ) => {
+    setSelectedPredefinedTests((prevTests) =>
+      prevTests.map((test) =>
+        test.name === testName ? { ...test, [field]: value } : test
       )
     );
   };
@@ -58,6 +79,34 @@ function AvailableTestsPage() {
     setNewTest({ name: "", description: "", price: "", homeSample: "No" });
   };
 
+  const saveTestsToFirebase = async () => {
+    const labId = localStorage.getItem("labDocId");
+    if (!labId) {
+      alert("Lab ID not found. Please register again.");
+      return;
+    }
+
+    const allTests = [...selectedPredefinedTests, ...customTests];
+
+    try {
+      for (const test of allTests) {
+        await addDoc(collection(db, "LabData", labId, "Tests"), {
+          testName: test.name,
+          description: test.description,
+          price: parseFloat(test.price),
+          homeOrder: test.homeSample === "Yes",
+          estimatedTime: test.estimatedTime || "N/A",
+        });
+      }
+
+      alert("Tests saved successfully!");
+      window.location.href = "/dashboard";
+    } catch (err) {
+      console.error("Error saving tests:", err);
+      alert("Something went wrong while saving tests.");
+    }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#00ACC1]">
       <div className="bg-white p-8 rounded-lg shadow-lg w-[90%] max-w-3xl">
@@ -65,51 +114,99 @@ function AvailableTestsPage() {
           Select Offered Tests
         </h1>
 
+        {/* Predefined Tests */}
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-[#374151] mb-4">
             Predefined Tests
           </h2>
           <ul className="space-y-4">
-            {predefinedTests.map((test, index) => (
-              <li key={index} className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id={`test-${index}`}
-                    className="w-4 h-4 text-[#3FA65C] border-gray-300 rounded focus:ring-[#3FA65C]"
-                    onChange={(e) =>
-                      handlePredefinedTestChange(test, e.target.checked)
-                    }
-                  />
-                  <label
-                    htmlFor={`test-${index}`}
-                    className="text-[#374151] text-sm"
-                  >
-                    {test}
-                  </label>
-                </div>
-                {selectedPredefinedTests.some(
-                  (selectedTest) => selectedTest.name === test
-                ) && (
-                  <input
-                    type="text"
-                    placeholder="Price"
-                    value={
-                      selectedPredefinedTests.find(
-                        (selectedTest) => selectedTest.name === test
-                      )?.price || ""
-                    }
-                    onChange={(e) =>
-                      handlePredefinedTestPriceChange(test, e.target.value)
-                    }
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#3FA65C]"
-                  />
-                )}
-              </li>
-            ))}
+            {predefinedTests.map((test, index) => {
+              const selectedTest = selectedPredefinedTests.find(
+                (t) => t.name === test
+              );
+              return (
+                <li key={index} className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`test-${index}`}
+                      className="w-4 h-4 text-[#3FA65C] border-gray-300 rounded focus:ring-[#3FA65C]"
+                      checked={!!selectedTest}
+                      onChange={(e) =>
+                        handlePredefinedTestChange(test, e.target.checked)
+                      }
+                    />
+                    <label
+                      htmlFor={`test-${index}`}
+                      className="text-[#374151] text-sm"
+                    >
+                      {test}
+                    </label>
+                  </div>
+                  {selectedTest && (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Price"
+                        value={selectedTest.price}
+                        onChange={(e) =>
+                          handlePredefinedTestFieldChange(
+                            test,
+                            "price",
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#3FA65C]"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Write description of the test / NA"
+                        value={selectedTest.description}
+                        onChange={(e) =>
+                          handlePredefinedTestFieldChange(
+                            test,
+                            "description",
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#3FA65C]"
+                      />
+                      <select
+                        value={selectedTest.homeSample}
+                        onChange={(e) =>
+                          handlePredefinedTestFieldChange(
+                            test,
+                            "homeSample",
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#3FA65C]"
+                      >
+                        <option value="No">Can this be done from home? No</option>
+                        <option value="Yes">Yes</option>
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="Estimated time (e.g., 24 hrs)"
+                        value={selectedTest.estimatedTime}
+                        onChange={(e) =>
+                          handlePredefinedTestFieldChange(
+                            test,
+                            "estimatedTime",
+                            e.target.value
+                          )
+                        }
+                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#3FA65C]"
+                      />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
 
+        {/* Custom Test Section */}
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-[#374151] mb-4">
             Add Custom Test
@@ -160,6 +257,7 @@ function AvailableTestsPage() {
           </div>
         </div>
 
+        {/* Custom Tests Preview */}
         {customTests.length > 0 && (
           <div>
             <h2 className="text-lg font-semibold text-[#374151] mb-4">
@@ -173,22 +271,17 @@ function AvailableTestsPage() {
                 >
                   <h3 className="font-bold text-[#374151]">{test.name}</h3>
                   <p className="text-sm text-[#374151]">{test.description}</p>
-                  <p className="text-sm text-[#374151]">
-                    Price: ${test.price}
-                  </p>
-                  <p className="text-sm text-[#374151]">
-                    Home Sample: {test.homeSample}
-                  </p>
+                  <p className="text-sm text-[#374151]">Price: ${test.price}</p>
+                  <p className="text-sm text-[#374151]">Home Sample: {test.homeSample}</p>
                 </li>
               ))}
             </ul>
           </div>
         )}
 
+        {/* Save Button */}
         <button
-          onClick={() => {
-            window.location.href = "/dashboard";
-          }}
+          onClick={saveTestsToFirebase}
           className="w-full bg-[#00ACC1] text-white py-2 px-4 rounded hover:bg-[#008b9a] transition duration-200 mt-6"
         >
           Complete Registration
