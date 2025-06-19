@@ -4,12 +4,20 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../../../lib/firebase";
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 
 function Page() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
+  const db = getFirestore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,10 +31,22 @@ function Page() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Store in localStorage if needed
-      localStorage.setItem("userEmail", user.email || "");
-      localStorage.setItem("uid", user.uid);
+      // ✅ Now query Firestore using the user's UID
+      const q = query(collection(db, "LabData"), where("uid", "==", user.uid));
+      const snapshot = await getDocs(q);
 
+      if (snapshot.empty) {
+        throw new Error("Lab data not found for this user.");
+      }
+
+      const labDoc = snapshot.docs[0];
+
+      // ✅ Save useful info to localStorage
+      localStorage.setItem("labDocId", labDoc.id);
+      localStorage.setItem("userEmail", user.email || "");
+      localStorage.setItem("userUID", user.uid);
+
+      // 🔐 Redirect to dashboard
       router.push("/dashboard");
     } catch (err: unknown) {
       console.error(err);
