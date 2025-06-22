@@ -13,7 +13,7 @@ function AvailableTestsPage() {
     description: string;
     price: string;
     homeSample: string;
-    estimatedTime?: string;
+    estimatedTime?: number;
   }
 
   const [customTests, setCustomTests] = useState<TestInput[]>([]);
@@ -22,6 +22,7 @@ function AvailableTestsPage() {
     description: "",
     price: "",
     homeSample: "No",
+    estimatedTime: undefined,
   });
 
   const [selectedPredefinedTests, setSelectedPredefinedTests] = useState<
@@ -46,7 +47,7 @@ function AvailableTestsPage() {
           name: testName,
           price: "",
           homeSample: "No",
-          estimatedTime: "",
+          estimatedTime: undefined,
           description: "",
         },
       ]);
@@ -64,7 +65,17 @@ function AvailableTestsPage() {
   ) => {
     setSelectedPredefinedTests((prevTests) =>
       prevTests.map((test) =>
-        test.name === testName ? { ...test, [field]: value } : test
+        test.name === testName
+          ? {
+              ...test,
+              [field]:
+                field === "estimatedTime"
+                  ? value === ""
+                    ? undefined
+                    : parseInt(value, 10)
+                  : value,
+            }
+          : test
       )
     );
   };
@@ -76,7 +87,7 @@ function AvailableTestsPage() {
     }
 
     setCustomTests([...customTests, newTest]);
-    setNewTest({ name: "", description: "", price: "", homeSample: "No" });
+    setNewTest({ name: "", description: "", price: "", homeSample: "No", estimatedTime: undefined });
   };
 
   const saveTestsToFirebase = async () => {
@@ -95,7 +106,7 @@ function AvailableTestsPage() {
           description: test.description,
           price: parseFloat(test.price),
           homeOrder: test.homeSample === "Yes",
-          estimatedTime: test.estimatedTime || "N/A",
+          estimatedTime: typeof test.estimatedTime === "number" ? test.estimatedTime : null,
         });
       }
 
@@ -186,9 +197,14 @@ function AvailableTestsPage() {
                         <option value="Yes">Yes</option>
                       </select>
                       <input
-                        type="text"
-                        placeholder="Estimated time (e.g., 24 hrs)"
-                        value={selectedTest.estimatedTime}
+                        type="number"
+                        min="0"
+                        placeholder="Estimated time (hours, e.g., 24)"
+                        value={
+                          selectedTest.estimatedTime !== undefined
+                            ? selectedTest.estimatedTime
+                            : ""
+                        }
                         onChange={(e) =>
                           handlePredefinedTestFieldChange(
                             test,
@@ -248,6 +264,19 @@ function AvailableTestsPage() {
               <option value="No">Can it be done by only blood sample from home? No</option>
               <option value="Yes">Yes</option>
             </select>
+            <input
+              type="number"
+              min="0"
+              placeholder="Estimated time (hours, e.g., 24)"
+              value={newTest.estimatedTime !== undefined ? newTest.estimatedTime : ""}
+              onChange={(e) =>
+                setNewTest({
+                  ...newTest,
+                  estimatedTime: e.target.value === "" ? undefined : parseInt(e.target.value, 10),
+                })
+              }
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#3FA65C]"
+            />
             <button
               onClick={handleAddCustomTest}
               className="w-full bg-[#3FA65C] text-white py-2 px-4 rounded hover:bg-[#2e8c4a] transition duration-200"
@@ -273,6 +302,12 @@ function AvailableTestsPage() {
                   <p className="text-sm text-[#374151]">{test.description}</p>
                   <p className="text-sm text-[#374151]">Price: ${test.price}</p>
                   <p className="text-sm text-[#374151]">Home Sample: {test.homeSample}</p>
+                  <p className="text-sm text-[#374151]">
+                    Estimated Time:{" "}
+                    {typeof test.estimatedTime === "number"
+                      ? `${test.estimatedTime} hrs`
+                      : "N/A"}
+                  </p>
                 </li>
               ))}
             </ul>

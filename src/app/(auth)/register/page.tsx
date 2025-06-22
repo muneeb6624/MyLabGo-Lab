@@ -7,6 +7,7 @@ import { auth, app } from '../../../../lib/firebase';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { CldUploadWidget, CloudinaryUploadWidgetResults } from 'next-cloudinary';
 import Image from 'next/image';
+import { setDoc, doc } from 'firebase/firestore';
 
 function Page() {
   const [username, setUsername] = useState('');
@@ -60,8 +61,15 @@ function Page() {
         imgUrl: labImageUrl,
         labName: labname,
         userName: username,
-        role: 'user', // add a default role field if needed by your rules
+        role: 'admin',
       });
+
+      await setDoc(doc(db, 'UserData', user.uid), {
+  uid: user.uid,
+  email,
+  username,
+  role: 'admin',
+});
 
       // 🔥 Save the document ID to localStorage for later use
       localStorage.setItem("labDocId", labDocRef.id);
