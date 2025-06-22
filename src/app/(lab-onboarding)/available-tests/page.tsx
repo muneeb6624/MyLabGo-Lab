@@ -317,7 +317,7 @@ function AvailableTestsPage() {
         {/* Save Button */}
         <button
           onClick={saveTestsToFirebase}
-          className="w-full bg-[#00ACC1] text-white py-2 px-4 rounded hover:bg-[#008b9a] transition duration-200 mt-6"
+          className="w-full bg-[#00ACC1] text-white py-2 px-4 rounded hover:bg-[#008b9a] transition duration-200 mt-6 hover:cursor-pointer"
         >
           Complete Registration
         </button>

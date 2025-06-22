@@ -21,6 +21,9 @@ function LocationPage() {
   const [map, setMap] = useState<maptilersdk.Map | null>(null);
   const markerRef = useRef<maptilersdk.Marker | null>(null);
   const [labId, setLabId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [suggestions, setSuggestions] = useState<MapTilerFeature[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const router = useRouter();
   const db = getFirestore(app);
 
@@ -37,6 +40,32 @@ function LocationPage() {
       return "Unknown location";
     }
   };
+
+  // Geocoding search
+  useEffect(() => {
+    if (search.length < 3) {
+      setSuggestions([]);
+      return;
+    }
+    const controller = new AbortController();
+    const fetchSuggestions = async () => {
+      try {
+        const res = await fetch(
+          `https://api.maptiler.com/geocoding/${encodeURIComponent(
+            search
+          )}.json?key=IS3cIJsI4oL56vExWNLY`,
+          { signal: controller.signal }
+        );
+        const data = await res.json();
+        setSuggestions(data.features || []);
+        setShowSuggestions(true);
+      } catch {
+        setSuggestions([]);
+      }
+    };
+    fetchSuggestions();
+    return () => controller.abort();
+  }, [search]);
 
   useEffect(() => {
     const labDocId = localStorage.getItem("labDocId");
@@ -99,6 +128,30 @@ function LocationPage() {
     );
   };
 
+  type MapTilerFeature = {
+    id: string;
+    place_name: string;
+    geometry: {
+      coordinates: [number, number];
+    };
+  };
+
+  const handleSuggestionClick = (feature: MapTilerFeature) => {
+    setShowSuggestions(false);
+    setSearch(feature.place_name);
+    const [lng, lat] = feature.geometry.coordinates;
+    setLatLng({ lat, lng });
+    if (map) {
+      map.setCenter([lng, lat]);
+      map.setZoom(14);
+      if (markerRef.current) markerRef.current.remove();
+      const newMarker = new maptilersdk.Marker()
+        .setLngLat([lng, lat])
+        .addTo(map);
+      markerRef.current = newMarker;
+    }
+  };
+
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -132,8 +185,33 @@ function LocationPage() {
           Set Your Lab Location
         </h1>
         <p className="text-sm text-[#374151] text-center mb-4">
-          Click on the map or use the icon to auto-detect your lab location.
+          Click on the map, search, or use the icon to auto-detect your lab location.
         </p>
+
+        {/* Search Bar */}
+        <div className="relative mb-4">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onFocus={() => setShowSuggestions(true)}
+            placeholder="Search for a location..."
+            className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none"
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <ul className="absolute z-10 bg-white border border-gray-200 w-full mt-1 rounded shadow max-h-48 overflow-auto">
+              {suggestions.map((feature) => (
+                <li
+                  key={feature.id}
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => handleSuggestionClick(feature)}
+                >
+                  {feature.place_name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         {error && (
           <div className="text-sm text-[#F57F17] mb-4 text-center">{error}</div>
@@ -159,7 +237,7 @@ function LocationPage() {
         <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
           <button
             type="submit"
-            className="bg-[#3FA65C] text-white py-2 px-4 rounded hover:bg-[#2e8c4a] transition duration-200"
+            className="bg-[#3FA65C] text-white py-2 px-4 rounded hover:bg-[#2e8c4a] transition duration-200 hover:cursor-pointer"
           >
             Save & Continue
           </button>
