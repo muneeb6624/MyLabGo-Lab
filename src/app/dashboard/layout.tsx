@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { RxAvatar } from "react-icons/rx";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../../../lib/firebase";
-import LabAvailabilityToggle from "../../components/buttons/LabAvailabilityToggle/LabAvailabilityToggle"; // adjust path if needed
+import LabAvailabilityToggle from "../../components/buttons/LabAvailabilityToggle/LabAvailabilityToggle";
 
 function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -47,7 +47,7 @@ function Layout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isAuthenticated) return null; // while redirecting
+  if (!isAuthenticated) return null;
 
   const navItems = [
     { label: "Profile", href: "/dashboard/profile" },
@@ -88,19 +88,9 @@ function Layout({ children }: { children: React.ReactNode }) {
         {/* Top Bar */}
         <header className="bg-white shadow p-4 flex justify-between items-center">
           <h1 className="text-xl font-bold text-[#374151]">MyLabGo Admin</h1>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-6">
+            <LabAvailabilityToggle />
             <RxAvatar size={24} className="text-gray-600" />
-            <div className="flex items-center space-x-6">
-              <LabAvailabilityToggle />
-              <RxAvatar size={24} className="text-gray-600" />
-              <button
-                onClick={handleLogout}
-                className="py-2 px-4 bg-[#F57F17] text-white rounded hover:bg-[#d66b0f] transition duration-200"
-              >
-                Logout
-              </button>
-            </div>
-
             <button
               onClick={handleLogout}
               className="py-2 px-4 bg-[#F57F17] text-white rounded hover:bg-[#d66b0f] transition duration-200"
