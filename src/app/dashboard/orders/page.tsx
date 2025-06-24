@@ -422,29 +422,34 @@ function OrdersPage() {
                       {order.status === "completed" && (
                         <>
                           {!order.reportUrl ? (
-                            <CldUploadWidget
-                              uploadPreset="mylabgo-user-reports"
-                              options={{ folder: "reports", multiple: false }}
-                              onSuccess={(results) => {
-                                if (
-                                  results.info &&
-                                  typeof results.info !== "string" &&
-                                  "secure_url" in results.info
-                                ) {
-                                  const url = results.info.secure_url;
-                                  handleUpload(order.id, url);
-                                }
-                              }}
-                            >
-                              {({ open }) => (
-                                <button
-                                  onClick={() => open()}
-                                  className="bg-gray-600 text-white py-1 px-3 rounded hover:bg-gray-800"
-                                >
-                                  Upload Report
-                                </button>
-                              )}
-                            </CldUploadWidget>
+                           <CldUploadWidget
+  uploadPreset="mylabgo-user-reports"
+  options={{
+    resourceType: "raw",
+    folder: "reports",
+    multiple: false,
+  }}
+  onSuccess={(results) => {
+    if (
+      results.info &&
+      typeof results.info !== "string" &&
+      "secure_url" in results.info
+    ) {
+      const url = results.info.secure_url;
+      handleUpload(order.id, url);
+    }
+  }}
+>
+  {({ open }) => (
+    <button
+      onClick={() => open()}
+      className="bg-gray-600 text-white py-1 px-3 rounded hover:bg-gray-800"
+    >
+      Upload Report
+    </button>
+  )}
+</CldUploadWidget>
+
                           ) : (
                             <>
                               <span className="text-green-600 font-semibold">
