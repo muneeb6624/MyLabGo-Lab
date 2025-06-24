@@ -18,6 +18,7 @@ interface ReportData {
   userId: string;
   userName: string;
   createdAt?: string;
+  labId: string;
 }
 
 export default function ReportsPage() {
@@ -69,14 +70,16 @@ export default function ReportsPage() {
             testIdSet.add(data.orderId);
           }
 
-          results.push({
-            id: docSnap.id,
-            reportUrl: data.reportUrl,
-            orderId: data.orderId,
-            userId: data.userId,
-            userName,
-            createdAt: createdAtStr,
-          });
+results.push({
+  id: docSnap.id,
+  reportUrl: data.reportUrl,
+  orderId: data.orderId,
+  userId: data.userId,
+  userName,
+  createdAt: createdAtStr,
+  labId: labDocId, // Lab id of current lab
+});
+
         }
 
         setReports(results);
