@@ -190,60 +190,58 @@ function OrdersPage() {
   };
 
   const handleUpload = async (orderId: string, url: string) => {
-    const labId = localStorage.getItem("labDocId");
-    if (!labId) return;
+  const labId = localStorage.getItem("labDocId");
+  if (!labId) return;
 
-    try {
-      const orderDoc = await getDoc(
-        doc(db, `LabData/${labId}/Orders/${orderId}`)
-      );
-      const orderData = orderDoc.exists() ? orderDoc.data() : null;
+  try {
+    const orderDoc = await getDoc(doc(db, `LabData/${labId}/Orders/${orderId}`));
+    const orderData = orderDoc.exists() ? orderDoc.data() : null;
 
-      let patientId = null;
-      if (orderData && orderData.user_id?.path) {
-        const parts = orderData.user_id.path.split("/");
-        patientId = parts.length === 2 ? parts[1] : null;
-      }
-
-      if (!patientId) {
-        alert("❌ Could not find patient ID for this order.");
-        return;
-      }
-
-      const batch = writeBatch(db);
-
-      const labReportRef = doc(collection(db, `LabData/${labId}/Reports`));
-      batch.set(labReportRef, {
-        reportUrl: url,
-        orderId,
-        userId: patientId,
-        createdAt: new Date(),
-      });
-
-      const userReportRef = doc(
-        collection(db, `UserData/${patientId}/Reports`)
-      );
-      batch.set(userReportRef, {
-        reportUrl: url,
-        orderId,
-        labId,
-        createdAt: new Date(),
-      });
-
-      await batch.commit();
-
-      setOrders((prev) =>
-        prev.map((order) =>
-          order.id === orderId ? { ...order, reportUrl: url } : order
-        )
-      );
-
-      alert("✅ Report uploaded successfully!");
-    } catch (e) {
-      console.error("Error uploading report:", e);
-      alert("Failed to upload report.");
+    let patientId = null;
+    if (orderData && orderData.user_id?.path) {
+      const parts = orderData.user_id.path.split("/");
+      patientId = parts.length === 2 ? parts[1] : null;
     }
-  };
+
+    if (!patientId) {
+      alert("❌ Could not find patient ID for this order.");
+      return;
+    }
+
+    const batch = writeBatch(db);
+
+    const labReportRef = doc(collection(db, `LabData/${labId}/Reports`));
+    batch.set(labReportRef, {
+      reportUrl: url,
+      orderId,
+      userId: patientId,
+      createdAt: new Date(),
+      labId, // lab id to save in firebase!
+    });
+
+    const userReportRef = doc(collection(db, `UserData/${patientId}/Reports`));
+    batch.set(userReportRef, {
+      reportUrl: url,
+      orderId,
+      labId,
+      createdAt: new Date(),
+    });
+
+    await batch.commit();
+
+    setOrders((prev) =>
+      prev.map((order) =>
+        order.id === orderId ? { ...order, reportUrl: url } : order
+      )
+    );
+
+    alert("✅ Report uploaded successfully!");
+  } catch (e) {
+    console.error("Error uploading report:", e);
+    alert("Failed to upload report.");
+  }
+};
+
 
   const handleDelete = async (
     orderId: string,
