@@ -21,3 +21,5 @@ export const auth = getAuth(app); // ✅ Export auth
 //export default app; 
 
 export { app };
+
+export { firebaseConfig };

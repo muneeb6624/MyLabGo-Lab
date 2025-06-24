@@ -1,11 +1,12 @@
-'use client';
+"use client";
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { RxAvatar } from "react-icons/rx";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "../../../lib/firebase"; // adjust path as needed
+import { auth } from "../../../lib/firebase";
+import LabAvailabilityToggle from "../../components/buttons/LabAvailabilityToggle/LabAvailabilityToggle"; // adjust path if needed
 
 function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -16,7 +17,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
-        router.push('/login');
+        router.push("/login");
       } else {
         setIsAuthenticated(true);
       }
@@ -34,7 +35,16 @@ function Layout({ children }: { children: React.ReactNode }) {
   };
 
   if (loading) {
-    return <div className="p-6 text-center text-gray-600">Checking authentication...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-[#00ACC1]">
+        <div className="animate-bounce text-4xl font-extrabold text-white mb-2 tracking-widest">
+          MyLabGo
+        </div>
+        <div className="text-lg text-white opacity-80">
+          Loading your dashboard...
+        </div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) return null; // while redirecting
@@ -80,6 +90,17 @@ function Layout({ children }: { children: React.ReactNode }) {
           <h1 className="text-xl font-bold text-[#374151]">MyLabGo Admin</h1>
           <div className="flex items-center space-x-4">
             <RxAvatar size={24} className="text-gray-600" />
+            <div className="flex items-center space-x-6">
+              <LabAvailabilityToggle />
+              <RxAvatar size={24} className="text-gray-600" />
+              <button
+                onClick={handleLogout}
+                className="py-2 px-4 bg-[#F57F17] text-white rounded hover:bg-[#d66b0f] transition duration-200"
+              >
+                Logout
+              </button>
+            </div>
+
             <button
               onClick={handleLogout}
               className="py-2 px-4 bg-[#F57F17] text-white rounded hover:bg-[#d66b0f] transition duration-200"

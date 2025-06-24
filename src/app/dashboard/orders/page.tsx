@@ -190,58 +190,61 @@ function OrdersPage() {
   };
 
   const handleUpload = async (orderId: string, url: string) => {
-  const labId = localStorage.getItem("labDocId");
-  if (!labId) return;
+    const labId = localStorage.getItem("labDocId");
+    if (!labId) return;
 
-  try {
-    const orderDoc = await getDoc(doc(db, `LabData/${labId}/Orders/${orderId}`));
-    const orderData = orderDoc.exists() ? orderDoc.data() : null;
+    try {
+      const orderDoc = await getDoc(
+        doc(db, `LabData/${labId}/Orders/${orderId}`)
+      );
+      const orderData = orderDoc.exists() ? orderDoc.data() : null;
 
-    let patientId = null;
-    if (orderData && orderData.user_id?.path) {
-      const parts = orderData.user_id.path.split("/");
-      patientId = parts.length === 2 ? parts[1] : null;
+      let patientId = null;
+      if (orderData && orderData.user_id?.path) {
+        const parts = orderData.user_id.path.split("/");
+        patientId = parts.length === 2 ? parts[1] : null;
+      }
+
+      if (!patientId) {
+        alert("❌ Could not find patient ID for this order.");
+        return;
+      }
+
+      const batch = writeBatch(db);
+
+      const labReportRef = doc(collection(db, `LabData/${labId}/Reports`));
+      batch.set(labReportRef, {
+        reportUrl: url,
+        orderId,
+        userId: patientId,
+        createdAt: new Date(),
+        labId, // lab id to save in firebase!
+      });
+
+      const userReportRef = doc(
+        collection(db, `UserData/${patientId}/Reports`)
+      );
+      batch.set(userReportRef, {
+        reportUrl: url,
+        orderId,
+        labId,
+        createdAt: new Date(),
+      });
+
+      await batch.commit();
+
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === orderId ? { ...order, reportUrl: url } : order
+        )
+      );
+
+      alert("✅ Report uploaded successfully!");
+    } catch (e) {
+      console.error("Error uploading report:", e);
+      alert("Failed to upload report.");
     }
-
-    if (!patientId) {
-      alert("❌ Could not find patient ID for this order.");
-      return;
-    }
-
-    const batch = writeBatch(db);
-
-    const labReportRef = doc(collection(db, `LabData/${labId}/Reports`));
-    batch.set(labReportRef, {
-      reportUrl: url,
-      orderId,
-      userId: patientId,
-      createdAt: new Date(),
-      labId, // lab id to save in firebase!
-    });
-
-    const userReportRef = doc(collection(db, `UserData/${patientId}/Reports`));
-    batch.set(userReportRef, {
-      reportUrl: url,
-      orderId,
-      labId,
-      createdAt: new Date(),
-    });
-
-    await batch.commit();
-
-    setOrders((prev) =>
-      prev.map((order) =>
-        order.id === orderId ? { ...order, reportUrl: url } : order
-      )
-    );
-
-    alert("✅ Report uploaded successfully!");
-  } catch (e) {
-    console.error("Error uploading report:", e);
-    alert("Failed to upload report.");
-  }
-};
-
+  };
 
   const handleDelete = async (
     orderId: string,
@@ -422,34 +425,33 @@ function OrdersPage() {
                       {order.status === "completed" && (
                         <>
                           {!order.reportUrl ? (
-                           <CldUploadWidget
-  uploadPreset="mylabgo-user-reports"
-  options={{
-    resourceType: "raw",
-    folder: "reports",
-    multiple: false,
-  }}
-  onSuccess={(results) => {
-    if (
-      results.info &&
-      typeof results.info !== "string" &&
-      "secure_url" in results.info
-    ) {
-      const url = results.info.secure_url;
-      handleUpload(order.id, url);
-    }
-  }}
->
-  {({ open }) => (
-    <button
-      onClick={() => open()}
-      className="bg-gray-600 text-white py-1 px-3 rounded hover:bg-gray-800"
-    >
-      Upload Report
-    </button>
-  )}
-</CldUploadWidget>
-
+                            <CldUploadWidget
+                              uploadPreset="mylabgo-user-reports"
+                              options={{
+                                resourceType: "raw",
+                                folder: "reports",
+                                multiple: false,
+                              }}
+                              onSuccess={(results) => {
+                                if (
+                                  results.info &&
+                                  typeof results.info !== "string" &&
+                                  "secure_url" in results.info
+                                ) {
+                                  const url = results.info.secure_url;
+                                  handleUpload(order.id, url);
+                                }
+                              }}
+                            >
+                              {({ open }) => (
+                                <button
+                                  onClick={() => open()}
+                                  className="bg-gray-600 text-white py-1 px-3 rounded hover:bg-gray-800"
+                                >
+                                  Upload Report
+                                </button>
+                              )}
+                            </CldUploadWidget>
                           ) : (
                             <>
                               <span className="text-green-600 font-semibold">
@@ -482,8 +484,7 @@ function OrdersPage() {
                     </td>
 
                     <td className="border border-gray-300 p-3">
-                      {order.paymentMethod} <br/>
-
+                      {order.paymentMethod} <br />
                       <button
                         onClick={() => handleMarkPaymentDone(order)}
                         className="ml-2 bg-green-300 text-white py-1 px-2 rounded hover:bg-green-500"
