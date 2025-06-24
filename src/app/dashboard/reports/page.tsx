@@ -70,16 +70,16 @@ export default function ReportsPage() {
             testIdSet.add(data.orderId);
           }
 
-results.push({
-  id: docSnap.id,
-  reportUrl: data.reportUrl,
-  orderId: data.orderId,
-  userId: data.userId,
-  userName,
-  createdAt: createdAtStr,
-  labId: labDocId, // Lab id of current lab
-});
-
+          // Ensure labId is present in the report object, fallback to labDocId from localStorage
+          results.push({
+            id: docSnap.id,
+            reportUrl: data.reportUrl,
+            orderId: data.orderId,
+            userId: data.userId,
+            userName,
+            createdAt: createdAtStr,
+            labId: data.labId || labDocId,
+          });
         }
 
         setReports(results);
