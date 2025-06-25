@@ -7,6 +7,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  setDoc,
   updateDoc,
   query,
   where,
@@ -28,6 +29,7 @@ interface Order {
   paymentMethod?: string;
   testId?: string; // ← add this
   userId?: string; // ← and this
+  paymentStatus?: string; 
 }
 
 function OrdersPage() {
@@ -53,95 +55,105 @@ function OrdersPage() {
         try {
           const fetchedOrders: Order[] = [];
 
-          for (const orderDoc of snapshot.docs) {
-            const data = orderDoc.data();
+    for (const orderDoc of snapshot.docs) {
+      const data = orderDoc.data();
 
-            let testName = "N/A";
-            let patientName = "N/A";
-            let reportUrl: string | undefined = undefined;
-            let reportDocId: string | undefined = undefined;
-            let labReportDocId: string | undefined = undefined;
-            let date: Date | undefined = undefined;
-            let testId: string | undefined = undefined;
-            let userId: string | undefined = undefined;
+      let testName = "N/A";
+      let patientName = "N/A";
+      let reportUrl: string | undefined = undefined;
+      let reportDocId: string | undefined = undefined;
+      let labReportDocId: string | undefined = undefined;
+      let date: Date | undefined = undefined;
+      let testId: string | undefined = undefined;
+      let userId: string | undefined = undefined;
+      let _paymentStatus: string | undefined = undefined;
 
-            // Get date from Firestore timestamp or fallback to today
-            if (data["data-time"]) {
-              if (typeof data["data-time"]?.toDate === "function") {
-                date = data["data-time"].toDate();
-              } else if (typeof data["data-time"] === "string") {
-                date = new Date(data["data-time"]);
-              }
-            }
-            if (!date) {
-              date = new Date(); // fallback to today
-            }
+      // Get date from Firestore timestamp or fallback to today
+      if (data["data-time"]) {
+        if (typeof data["data-time"]?.toDate === "function") {
+          date = data["data-time"].toDate();
+        } else if (typeof data["data-time"] === "string") {
+          date = new Date(data["data-time"]);
+        }
+      }
+      if (!date) {
+        date = new Date(); // fallback to today
+      }
 
-            // Fetch test name and test ID
-            if (data.test_id?.path) {
-              const p = data.test_id.path.split("/").filter(Boolean);
-              if (p.length === 4) {
-                testId = p[3]; // store test ID for later
-                const testRef = doc(db, p[0], p[1], p[2], p[3]);
-                const testSnap = await getDoc(testRef);
-                testName = testSnap.exists()
-                  ? testSnap.data()?.testName || "No Name"
-                  : "No Name";
-              }
-            }
+      // Fetch test name and test ID
+      if (data.test_id?.path) {
+        const p = data.test_id.path.split("/").filter(Boolean);
+        if (p.length === 4) {
+          testId = p[3]; // store test ID for later
+          const testRef = doc(db, p[0], p[1], p[2], p[3]);
+          const testSnap = await getDoc(testRef);
+          testName = testSnap.exists()
+            ? testSnap.data()?.testName || "No Name"
+            : "No Name";
+        }
+      }
 
-            // Fetch patient name and user ID, plus reports
-            if (data.user_id?.path) {
-              const u = data.user_id.path.split("/").filter(Boolean);
-              if (u.length === 2) {
-                userId = u[1]; // store user ID for later
-                const userRef = doc(db, u[0], u[1]);
-                const userSnap = await getDoc(userRef);
-                patientName = userSnap.exists()
-                  ? userSnap.data().name ||
-                    userSnap.data().fullName ||
-                    userSnap.data().userName ||
-                    "Unnamed"
-                  : "Unnamed";
+      // Fetch patient name and user ID, plus reports
+      if (data.user_id?.path) {
+        const u = data.user_id.path.split("/").filter(Boolean);
+        if (u.length === 2) {
+          userId = u[1]; // store user ID for later
+          // ✅ Fetch payment status from Payments subcollection
+          const paymentRef = doc(db, `UserData/${userId}/Payments/${orderDoc.id}`);
+          const paymentSnap = await getDoc(paymentRef);
+          // paymentStatus is fetched below and used in the fetchedOrders.push
+          _paymentStatus =
+            paymentSnap.exists() && paymentSnap.data()?.paymentStatus
+              ? paymentSnap.data().paymentStatus
+              : undefined;
 
-                // Check User's report for this order
-                const userReportQuery = query(
-                  collection(db, `UserData/${u[1]}/Reports`),
-                  where("orderId", "==", orderDoc.id)
-                );
-                const userReportSnap = await getDocs(userReportQuery);
-                if (!userReportSnap.empty) {
-                  const reportDoc = userReportSnap.docs[0];
-                  reportUrl = reportDoc.data().reportUrl;
-                  reportDocId = reportDoc.id;
-                }
+          const userRef = doc(db, u[0], u[1]);
+          const userSnap = await getDoc(userRef);
+          patientName = userSnap.exists()
+            ? userSnap.data().name ||
+              userSnap.data().fullName ||
+              userSnap.data().userName ||
+              "Unnamed"
+            : "Unnamed";
 
-                // Check Lab's report for this order
-                const labReportQuery = query(
-                  collection(db, `LabData/${labDocId}/Reports`),
-                  where("orderId", "==", orderDoc.id)
-                );
-                const labReportSnap = await getDocs(labReportQuery);
-                if (!labReportSnap.empty) {
-                  labReportDocId = labReportSnap.docs[0].id;
-                }
-              }
-            }
-
-            fetchedOrders.push({
-              id: orderDoc.id,
-              status: data.status || "unknown",
-              testName,
-              patientName,
-              reportUrl,
-              reportDocId,
-              labReportDocId,
-              date,
-              paymentMethod: data.paymentMethod || "N/A",
-              testId,
-              userId,
-            });
+          // Check User's report for this order
+          const userReportQuery = query(
+            collection(db, `UserData/${u[1]}/Reports`),
+            where("orderId", "==", orderDoc.id)
+          );
+          const userReportSnap = await getDocs(userReportQuery);
+          if (!userReportSnap.empty) {
+            const reportDoc = userReportSnap.docs[0];
+            reportUrl = reportDoc.data().reportUrl;
+            reportDocId = reportDoc.id;
           }
+
+          // Check Lab's report for this order
+          const labReportQuery = query(
+            collection(db, `LabData/${labDocId}/Reports`),
+            where("orderId", "==", orderDoc.id)
+          );
+          const labReportSnap = await getDocs(labReportQuery);
+          if (!labReportSnap.empty) {
+            labReportDocId = labReportSnap.docs[0].id;
+          }
+        }
+      }
+      fetchedOrders.push({
+        id: orderDoc.id,
+        status: data.status || "unknown",
+        testName,
+        patientName,
+        reportUrl,
+        reportDocId,
+        labReportDocId,
+        date,
+        paymentMethod: data.paymentMethod || "N/A",
+        testId,
+        userId,
+        paymentStatus: _paymentStatus, // <-- Use the fetched payment status here
+      });
+    }
 
           const today = new Date();
           today.setHours(0, 0, 0, 0);
@@ -285,10 +297,14 @@ function OrdersPage() {
     }
 
     try {
-      const testDocRef = doc(
-        db,
-        `LabData/${localStorage.getItem("labDocId")}/Tests/${order.testId}`
-      );
+      const labDocId = localStorage.getItem("labDocId");
+      if (!labDocId) {
+        alert("Lab ID not found.");
+        return;
+      }
+
+      // Fetch test details to get price
+      const testDocRef = doc(db, `LabData/${labDocId}/Tests/${order.testId}`);
       const testSnap = await getDoc(testDocRef);
 
       if (!testSnap.exists()) {
@@ -296,17 +312,40 @@ function OrdersPage() {
         return;
       }
 
-      const price = testSnap.data().price || 0;
+      const price = testSnap.data()?.price || 0;
 
+      // Payment doc reference in user's Payments subcollection
       const paymentDocRef = doc(
         db,
         `UserData/${order.userId}/Payments/${order.id}`
       );
-      await updateDoc(paymentDocRef, {
-        paymentStatus: "done",
-        amount: price,
-        updatedAt: new Date(),
-      });
+
+      // Check if payment doc exists
+      const paymentSnap = await getDoc(paymentDocRef);
+
+      if (paymentSnap.exists()) {
+        // Update existing payment doc
+        await setDoc(
+          paymentDocRef,
+          {
+            paymentStatus: "done",
+            amount: price,
+            testId: order.testId,
+            updatedAt: new Date(),
+          },
+          { merge: true }
+        );
+      } else {
+        // Create new payment doc
+        await setDoc(paymentDocRef, {
+          paymentStatus: "done",
+          amount: price,
+          testId: order.testId,
+          orderId: order.id,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
 
       alert("✅ Payment marked as done.");
     } catch (err) {
@@ -484,13 +523,20 @@ function OrdersPage() {
                     </td>
 
                     <td className="border border-gray-300 p-3">
-                      {order.paymentMethod} <br />
-                      <button
-                        onClick={() => handleMarkPaymentDone(order)}
-                        className="ml-2 bg-green-300 text-white py-1 px-2 rounded hover:bg-green-500"
-                      >
-                        Done Payment
-                      </button>
+                      {order.paymentMethod}
+                      <br />
+                      {order.paymentStatus === "done" ? (
+                        <span className="text-green-600 font-semibold">
+                          Payment done!
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleMarkPaymentDone(order)}
+                          className="mt-2 bg-[#3FA65C] text-white py-1 px-3 rounded hover:bg-[#2e8c4a]"
+                        >
+                          Done Payment
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

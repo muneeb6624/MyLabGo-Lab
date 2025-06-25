@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   getFirestore,
   collection,
@@ -8,8 +8,8 @@ import {
   deleteDoc,
   doc,
   getDoc,
-} from 'firebase/firestore';
-import { app } from '../../../../lib/firebase';
+} from "firebase/firestore";
+import { app } from "../../../../lib/firebase";
 
 interface ReportData {
   id: string;
@@ -26,18 +26,20 @@ export default function ReportsPage() {
   const [reports, setReports] = useState<ReportData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [testNames, setTestNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchReports = async () => {
-      const labDocId = localStorage.getItem('labDocId');
+      const labDocId = localStorage.getItem("labDocId");
       if (!labDocId) return;
 
       try {
-        const snapshot = await getDocs(collection(db, `LabData/${labDocId}/Reports`));
+        const snapshot = await getDocs(
+          collection(db, `LabData/${labDocId}/Reports`)
+        );
         const results: ReportData[] = [];
         const testIdSet = new Set<string>();
 
@@ -46,22 +48,22 @@ export default function ReportsPage() {
 
           if (!data.userId || !data.reportUrl || !data.orderId) continue;
 
-          let userName = 'Unknown';
+          let userName = "Unknown";
           try {
             const userDoc = await getDoc(doc(db, `UserData/${data.userId}`));
             if (userDoc.exists()) {
               const u = userDoc.data();
-              userName = u.name || u.fullName || u.userName || 'Unnamed';
+              userName = u.name || u.fullName || u.userName || "Unnamed";
             }
           } catch (err) {
             console.warn(`⚠️ Could not fetch user for ID ${data.userId}`, err);
           }
 
-          let createdAtStr = '';
+          let createdAtStr = "";
           if (data.createdAt) {
-            if (typeof data.createdAt === 'string') {
+            if (typeof data.createdAt === "string") {
               createdAtStr = data.createdAt;
-            } else if (typeof data.createdAt.toDate === 'function') {
+            } else if (typeof data.createdAt.toDate === "function") {
               createdAtStr = data.createdAt.toDate().toLocaleString();
             }
           }
@@ -90,34 +92,37 @@ export default function ReportsPage() {
         await Promise.all(
           testIdArr.map(async (testId) => {
             try {
-              const bookingDoc = await getDoc(doc(db, `LabData/${labDocId}/Bookings/${testId}`));
+              const bookingDoc = await getDoc(
+                doc(db, `LabData/${labDocId}/Bookings/${testId}`)
+              );
               if (bookingDoc.exists()) {
                 const bookingData = bookingDoc.data();
                 if (bookingData.testName) {
                   testNameMap[testId] = bookingData.testName;
                 } else if (bookingData.testId) {
-                  const testDoc = await getDoc(doc(db, `TestData/${bookingData.testId}`));
+                  const testDoc = await getDoc(
+                    doc(db, `TestData/${bookingData.testId}`)
+                  );
                   if (testDoc.exists()) {
                     const testData = testDoc.data();
-                    testNameMap[testId] = testData.name || 'Unknown Test';
+                    testNameMap[testId] = testData.name || "Unknown Test";
                   } else {
-                    testNameMap[testId] = 'Unknown Test';
+                    testNameMap[testId] = "Unknown Test";
                   }
                 } else {
-                  testNameMap[testId] = 'Unknown Test';
+                  testNameMap[testId] = "Unknown Test";
                 }
               } else {
-                testNameMap[testId] = 'Unknown Test';
+                testNameMap[testId] = "Unknown Test";
               }
             } catch {
-              testNameMap[testId] = 'Unknown Test';
+              testNameMap[testId] = "Unknown Test";
             }
           })
         );
         setTestNames(testNameMap);
-
       } catch (err) {
-        console.error('❌ Error fetching reports:', err);
+        console.error("❌ Error fetching reports:", err);
       } finally {
         setLoading(false);
       }
@@ -127,18 +132,18 @@ export default function ReportsPage() {
   }, [db]);
 
   const handleDelete = async (reportId: string) => {
-    const labDocId = localStorage.getItem('labDocId');
+    const labDocId = localStorage.getItem("labDocId");
     if (!labDocId) return;
 
-    if (!window.confirm('Are you sure you want to delete this report?')) return;
+    if (!window.confirm("Are you sure you want to delete this report?")) return;
 
     try {
       await deleteDoc(doc(db, `LabData/${labDocId}/Reports/${reportId}`));
       setReports((prev) => prev.filter((r) => r.id !== reportId));
-      alert('🗑️ Report deleted.');
+      alert("🗑️ Report deleted.");
     } catch (err) {
-      console.error('❌ Failed to delete report:', err);
-      alert('Failed to delete.');
+      console.error("❌ Failed to delete report:", err);
+      alert("Failed to delete.");
     }
   };
 
@@ -153,7 +158,7 @@ export default function ReportsPage() {
         (r) =>
           r.userId === uid &&
           (r.id.toLowerCase().includes(term) ||
-            (testNames[r.orderId]?.toLowerCase().includes(term)) ||
+            testNames[r.orderId]?.toLowerCase().includes(term) ||
             r.orderId.toLowerCase().includes(term))
       )
     );
@@ -164,7 +169,7 @@ export default function ReportsPage() {
     if (!dateFrom && !dateTo) return true;
     const date = new Date(createdAt);
     if (dateFrom && date < new Date(dateFrom)) return false;
-    if (dateTo && date > new Date(dateTo + 'T23:59:59')) return false;
+    if (dateTo && date > new Date(dateTo + "T23:59:59")) return false;
     return true;
   }
 
@@ -183,12 +188,16 @@ export default function ReportsPage() {
           type="text"
           placeholder="Search patients, test, id..."
           value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
+          onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full mb-3 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#00ACC1] text-[#374151]"
         />
         <ul className="flex-1 overflow-y-auto mb-4">
           <li
-            className={`py-2 px-2 rounded cursor-pointer ${!selectedUserId ? 'bg-[#3FA65C] text-white font-semibold' : 'hover:bg-gray-100 text-[#374151]'}`}
+            className={`py-2 px-2 rounded cursor-pointer ${
+              !selectedUserId
+                ? "bg-[#3FA65C] text-white font-semibold"
+                : "hover:bg-gray-100 text-[#374151]"
+            }`}
             onClick={() => setSelectedUserId(null)}
           >
             All Patients
@@ -196,7 +205,11 @@ export default function ReportsPage() {
           {uniqueUsers.map(([uid, name]) => (
             <li
               key={uid}
-              className={`py-2 px-2 rounded cursor-pointer mt-1 ${selectedUserId === uid ? 'bg-[#3FA65C] text-white font-semibold' : 'hover:bg-gray-100 text-[#374151]'}`}
+              className={`py-2 px-2 rounded cursor-pointer mt-1 ${
+                selectedUserId === uid
+                  ? "bg-[#3FA65C] text-white font-semibold"
+                  : "hover:bg-gray-100 text-[#374151]"
+              }`}
               onClick={() => setSelectedUserId(uid)}
             >
               {name} <span className="text-xs text-gray-500">({uid})</span>
@@ -210,7 +223,7 @@ export default function ReportsPage() {
             <input
               type="date"
               value={dateFrom}
-              onChange={e => setDateFrom(e.target.value)}
+              onChange={(e) => setDateFrom(e.target.value)}
               className="block w-full mt-1 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#00ACC1] text-[#374151]"
             />
           </label>
@@ -219,7 +232,7 @@ export default function ReportsPage() {
             <input
               type="date"
               value={dateTo}
-              onChange={e => setDateTo(e.target.value)}
+              onChange={(e) => setDateTo(e.target.value)}
               className="block w-full mt-1 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#00ACC1] text-[#374151]"
             />
           </label>
@@ -227,7 +240,9 @@ export default function ReportsPage() {
       </aside>
       {/* Main Content */}
       <main className="flex-1 bg-white rounded-lg shadow-lg p-8 overflow-x-auto">
-        <h2 className="text-3xl font-bold text-[#374151] mb-6 text-center">Reports</h2>
+        <h2 className="text-3xl font-bold text-[#374151] mb-6 text-center">
+          Reports
+        </h2>
         {loading ? (
           <div className="text-center text-[#374151]">Loading...</div>
         ) : filteredReports.length === 0 ? (
@@ -237,19 +252,33 @@ export default function ReportsPage() {
             <table className="w-full border-collapse border border-gray-300 rounded-lg shadow">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="border border-gray-300 p-3 text-left">Patient</th>
+                  <th className="border border-gray-300 p-3 text-left">
+                    Patient
+                  </th>
                   <th className="border border-gray-300 p-3 text-left">Test</th>
-                  <th className="border border-gray-300 p-3 text-left">Created At</th>
-                  <th className="border border-gray-300 p-3 text-left">Report</th>
-                  <th className="border border-gray-300 p-3 text-left">Actions</th>
+                  <th className="border border-gray-300 p-3 text-left">
+                    Created At
+                  </th>
+                  <th className="border border-gray-300 p-3 text-left">
+                    Report
+                  </th>
+                  <th className="border border-gray-300 p-3 text-left">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredReports.map(report => (
+                {filteredReports.map((report) => (
                   <tr key={report.id} className="hover:bg-[#e0f7fa] transition">
-                    <td className="border border-gray-300 p-3">{report.userName}</td>
-                    <td className="border border-gray-300 p-3">{testNames[report.orderId] || 'Unknown'}</td>
-                    <td className="border border-gray-300 p-3">{report.createdAt}</td>
+                    <td className="border border-gray-300 p-3">
+                      {report.userName}
+                    </td>
+                    <td className="border border-gray-300 p-3">
+                      {testNames[report.orderId] || "Unknown"}
+                    </td>
+                    <td className="border border-gray-300 p-3">
+                      {report.createdAt}
+                    </td>
                     <td className="border border-gray-300 p-3">
                       <a
                         href={report.reportUrl}

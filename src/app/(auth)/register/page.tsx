@@ -18,6 +18,7 @@ function Page() {
   const [labImageUrl, setLabImageUrl] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [number, setNumber] = useState('');
 
   const router = useRouter();
   const db = getFirestore(app);
@@ -61,6 +62,7 @@ function Page() {
         imgUrl: labImageUrl,
         labName: labname,
         userName: username,
+        contactNumber: number,
         role: 'admin',
       });
 
@@ -116,6 +118,15 @@ function Page() {
             onChange={(e) => setLabName(e.target.value)}
             className="p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#3FA65C]"
           />
+
+          <input
+            type="text"
+            placeholder="Laboratory Number"
+            value={number}
+            onChange={(e) => setNumber(e.target.value)}
+            className="p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#3FA65C]"
+          />
+
           <input
             type="email"
             placeholder="Email"
